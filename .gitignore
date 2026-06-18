@@ -1,0 +1,22 @@
+# Node
+node_modules/
+backend/.env
+backend/*.db
+backend/*.db-journal
+backend/dev.db
+
+# Flutter
+app/.dart_tool/
+app/.flutter-plugins
+app/.flutter-plugins-dependencies
+app/build/
+app/.packages
+app/pubspec.lock
+app/android/.gradle/
+app/android/local.properties
+app/ios/Pods/
+app/web/.dart_tool/
+
+# Misc
+.DS_Store
+*.log

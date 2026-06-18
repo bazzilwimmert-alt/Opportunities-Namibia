@@ -1,0 +1,106 @@
+// Bax streaming platform data model
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id              String         @id @default(cuid())
+  email           String         @unique
+  passwordHash    String
+  fullName        String
+  role            String         @default("USER") // USER | ADMIN
+  dateOfBirth     DateTime?
+  ageConfirmed    Boolean        @default(false)
+  termsAcceptedAt DateTime?
+  status          String         @default("ACTIVE") // ACTIVE | SUSPENDED
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  profiles      Profile[]
+  subscription  Subscription?
+  payments      Payment[]
+}
+
+// Each account can have up to 2 profiles.
+model Profile {
+  id        String   @id @default(cuid())
+  userId    String
+  name      String
+  avatar    String?
+  isKids    Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Subscription {
+  id                String    @id @default(cuid())
+  userId            String    @unique
+  // ACTIVE = paid & streaming allowed, PAST_DUE = payment lapsed (rights revoked),
+  // CANCELED = user canceled, TRIALING, INACTIVE = never paid
+  status            String    @default("INACTIVE")
+  priceCents        Int       @default(20000) // N$200.00
+  currency          String    @default("NAD")
+  currentPeriodEnd  DateTime?
+  cancelAtPeriodEnd Boolean   @default(false)
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Payment {
+  id            String   @id @default(cuid())
+  userId        String
+  amountCents   Int
+  currency      String   @default("NAD")
+  status        String   @default("PENDING") // PENDING | PAID | FAILED | REFUNDED
+  provider      String   @default("paytoday")
+  providerRef   String?  // PayToday transaction reference
+  periodStart   DateTime?
+  periodEnd     DateTime?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Sport {
+  id        String    @id @default(cuid())
+  name      String
+  slug      String    @unique
+  icon      String?
+  sortOrder Int       @default(0)
+  active    Boolean   @default(true)
+  createdAt DateTime  @default(now())
+
+  channels Channel[]
+}
+
+model Channel {
+  id          String   @id @default(cuid())
+  sportId     String
+  name        String
+  description String?
+  logo        String?
+  streamUrl   String   // HLS/DASH manifest URL
+  poster      String?
+  isLive      Boolean  @default(true)
+  active      Boolean  @default(true)
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+
+  sport Sport @relation(fields: [sportId], references: [id], onDelete: Cascade)
+}
+
+// Editable platform-wide settings the admin controls online.
+model Setting {
+  key       String   @id
+  value     String
+  updatedAt DateTime @updatedAt
+}
