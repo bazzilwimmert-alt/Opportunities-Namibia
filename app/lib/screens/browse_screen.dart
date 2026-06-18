@@ -38,11 +38,13 @@ class _BrowseScreenState extends State<BrowseScreen> {
     }
   }
 
-  void _onChannelTap(Channel c) {
+  Future<void> _onChannelTap(Channel c) async {
     final state = context.read<AppState>();
-    if (!state.isEntitled || c.locked) {
-      Navigator.push(context,
+    if (!state.isEntitled) {
+      await Navigator.push(context,
           MaterialPageRoute(builder: (_) => const PaywallScreen()));
+      // Refresh entitlement/lock state after a possible subscription.
+      if (mounted) await _load();
       return;
     }
     Navigator.push(context,
@@ -127,8 +129,11 @@ class _BrowseScreenState extends State<BrowseScreen> {
           ElevatedButton(
             style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.black, foregroundColor: Colors.white),
-            onPressed: () => Navigator.push(context,
-                MaterialPageRoute(builder: (_) => const PaywallScreen())),
+            onPressed: () async {
+              await Navigator.push(context,
+                  MaterialPageRoute(builder: (_) => const PaywallScreen()));
+              if (mounted) await _load();
+            },
             child: const Text('Subscribe'),
           ),
         ],

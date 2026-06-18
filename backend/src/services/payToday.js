@@ -31,6 +31,16 @@ class PayTodayAdapter {
     }
 
     // --- LIVE PayToday integration point ---
+    // The payload below is what the real PayToday charge call expects.
+    const payload = {
+      merchant_id: config.payToday.merchantId,
+      amount: amountCents,
+      currency,
+      reference,
+      customer_email: customerEmail,
+      return_url: returnUrl,
+    };
+    void payload;
     // const res = await fetch(`${config.payToday.apiBase}/v1/charges`, {
     //   method: 'POST',
     //   headers: {
