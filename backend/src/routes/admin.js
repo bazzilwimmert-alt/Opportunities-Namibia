@@ -5,6 +5,7 @@ const { authenticate, requireAdmin } = require('../middleware/auth');
 const { activateForPeriod } = require('../services/membership');
 const { ingestSource, ingestAll } = require('../services/ingest');
 const { notifyPaymentConfirmed, notifyPaymentRejected } = require('../services/notify');
+const { serializeUser } = require('../utils/serialize');
 
 const router = express.Router();
 router.use(authenticate, requireAdmin);
@@ -38,7 +39,7 @@ router.get('/users', async (req, res) => {
     orderBy: { createdAt: 'desc' },
     include: { membership: true, profiles: true },
   });
-  return res.json({ users });
+  return res.json({ users: users.map(serializeUser) });
 });
 
 router.patch('/users/:id', async (req, res) => {
@@ -111,6 +112,11 @@ router.post('/payments/:id/reject', async (req, res) => {
     where: { id: req.params.id },
     data: { status: 'REJECTED', reviewedAt: new Date(), reviewedById: req.user.id },
   });
+  // Reset a still-pending membership so the user can submit a new payment.
+  const membership = await prisma.membership.findUnique({ where: { userId: claim.userId } });
+  if (membership && membership.status === 'PENDING') {
+    await prisma.membership.update({ where: { id: membership.id }, data: { status: 'INACTIVE' } });
+  }
   const user = await prisma.user.findUnique({ where: { id: claim.userId } });
   if (user) await notifyPaymentRejected(user);
   return res.json({ claim });
