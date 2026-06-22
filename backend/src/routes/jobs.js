@@ -7,6 +7,13 @@ const { serializeJob } = require('../utils/serialize');
 const router = express.Router();
 router.use(authenticate);
 
+// SQLite's LIKE (used by Prisma `contains`) is already case-insensitive for
+// ASCII, but PostgreSQL's is not. Add `mode: 'insensitive'` on Postgres so
+// search stays case-insensitive after the documented production migration.
+const isPostgres = /^postgres/i.test(process.env.DATABASE_URL || '');
+const containsCI = (value) =>
+  isPostgres ? { contains: value, mode: 'insensitive' } : { contains: value };
+
 // List / search vacancies. Members see full details; non-members get locked
 // previews (title/company/category only) until their payment is confirmed.
 router.get('/', async (req, res) => {
@@ -15,13 +22,13 @@ router.get('/', async (req, res) => {
   if (category) where.category = category;
   if (skillLevel) where.skillLevel = skillLevel;
   if (type) where.type = type;
-  if (location) where.location = { contains: location };
+  if (location) where.location = containsCI(location);
   if (q) {
     where.OR = [
-      { title: { contains: q } },
-      { company: { contains: q } },
-      { description: { contains: q } },
-      { category: { contains: q } },
+      { title: containsCI(q) },
+      { company: containsCI(q) },
+      { description: containsCI(q) },
+      { category: containsCI(q) },
     ];
   }
 
