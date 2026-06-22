@@ -47,8 +47,62 @@ class _BrowseScreenState extends State<BrowseScreen> {
       if (mounted) await _load();
       return;
     }
+    if (c.parentalBlocked) {
+      await _handleParentalBlock(c, state);
+      return;
+    }
     Navigator.push(context,
         MaterialPageRoute(builder: (_) => PlayerScreen(channel: c)));
+  }
+
+  Future<void> _handleParentalBlock(Channel c, AppState state) async {
+    if (state.user?.parentalPinSet != true) {
+      await showDialog(
+        context: context,
+        builder: (_) => AlertDialog(
+          title: const Text('Restricted by parental controls'),
+          content: Text(
+              '“${c.name}” is rated ${c.minAge}+ and is above this account’s '
+              'content limit. A guardian can raise the limit (or set a PIN to '
+              'override) in Account → Parental controls.'),
+          actions: [
+            TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('OK')),
+          ],
+        ),
+      );
+      return;
+    }
+    final pin = await _promptPin(c);
+    if (pin == null || !mounted) return;
+    Navigator.push(context,
+        MaterialPageRoute(builder: (_) => PlayerScreen(channel: c, pin: pin)));
+  }
+
+  Future<String?> _promptPin(Channel c) {
+    final ctrl = TextEditingController();
+    return showDialog<String>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Enter guardian PIN'),
+        content: TextField(
+          controller: ctrl,
+          obscureText: true,
+          keyboardType: TextInputType.number,
+          decoration: InputDecoration(
+              hintText: 'PIN to watch ${c.minAge}+ content'),
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel')),
+          ElevatedButton(
+              onPressed: () => Navigator.pop(context, ctrl.text.trim()),
+              child: const Text('Unlock')),
+        ],
+      ),
+    );
   }
 
   @override
@@ -225,10 +279,32 @@ class _BrowseScreenState extends State<BrowseScreen> {
                       ),
                     ),
                   if (c.locked)
-                    const Positioned(
+                    Positioned(
                       top: 8,
                       right: 8,
-                      child: Icon(Icons.lock, color: Colors.white, size: 18),
+                      child: Icon(
+                          c.parentalBlocked
+                              ? Icons.shield_outlined
+                              : Icons.lock,
+                          color: Colors.white,
+                          size: 18),
+                    ),
+                  if (c.minAge > 0)
+                    Positioned(
+                      bottom: 8,
+                      right: 8,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                            color: Colors.black54,
+                            borderRadius: BorderRadius.circular(5)),
+                        child: Text('${c.minAge}+',
+                            style: const TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w800,
+                                color: Colors.white)),
+                      ),
                     ),
                 ],
               ),

@@ -65,15 +65,21 @@ class AppState extends ChangeNotifier {
     required String email,
     required String password,
     required String fullName,
-    required bool ageConfirmed,
+    required String dateOfBirth,
     required bool acceptTerms,
+    String? guardianName,
+    String? guardianEmail,
+    bool? guardianConsent,
   }) async {
     final res = await api.post('/api/auth/signup', {
       'email': email,
       'password': password,
       'fullName': fullName,
-      'ageConfirmed': ageConfirmed,
+      'dateOfBirth': dateOfBirth,
       'acceptTerms': acceptTerms,
+      if (guardianName != null) 'guardianName': guardianName,
+      if (guardianEmail != null) 'guardianEmail': guardianEmail,
+      if (guardianConsent != null) 'guardianConsent': guardianConsent,
     });
     await _persistToken(res['token']);
     user = User.fromJson(res['user']);
@@ -107,9 +113,35 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<String> getPlayUrl(String channelId) async {
-    final res = await api.get('/api/catalog/channels/$channelId/play');
+  Future<String> getPlayUrl(String channelId, {String? pin}) async {
+    final path = '/api/catalog/channels/$channelId/play'
+        '${pin != null ? '?pin=$pin' : ''}';
+    final res = await api.get(path);
     return res['streamUrl'] as String;
+  }
+
+  // ---- Parental controls ----
+  Future<void> updateParentalSettings({
+    bool? enabled,
+    int? maxContentRating,
+    String? pin,
+  }) async {
+    final res = await api.put('/api/parental', {
+      if (enabled != null) 'enabled': enabled,
+      if (maxContentRating != null) 'maxContentRating': maxContentRating,
+      if (pin != null) 'pin': pin,
+    });
+    user = User.fromJson(res['user']);
+    notifyListeners();
+  }
+
+  Future<void> setParentalPin({String? currentPin, required String newPin}) async {
+    final res = await api.put('/api/parental/pin', {
+      if (currentPin != null) 'currentPin': currentPin,
+      'newPin': newPin,
+    });
+    user = User.fromJson(res['user']);
+    notifyListeners();
   }
 
   // ---- Subscription / payment ----

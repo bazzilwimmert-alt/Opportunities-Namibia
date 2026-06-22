@@ -29,7 +29,8 @@ const SPORTS = [
   { name: 'Cricket', slug: 'cricket', icon: '🏏', channels: ['Bax Cricket', 'Test Match Live'] },
   { name: 'Rugby', slug: 'rugby', icon: '🏉', channels: ['Bax Rugby', 'Scrum Live'] },
   { name: 'American Football', slug: 'american-football', icon: '🏈', channels: ['Bax Gridiron'] },
-  { name: 'Boxing', slug: 'boxing', icon: '🥊', channels: ['Bax Fight Night'] },
+  // Combat sports carry an age rating to demonstrate parental controls.
+  { name: 'Boxing', slug: 'boxing', icon: '🥊', channels: [{ name: 'Bax Fight Night', minAge: 16 }] },
 ];
 
 async function main() {
@@ -76,14 +77,18 @@ async function main() {
     const existingChannels = await prisma.channel.count({ where: { sportId: sport.id } });
     if (existingChannels === 0) {
       for (let c = 0; c < def.channels.length; c += 1) {
+        const ch = def.channels[c];
+        const name = typeof ch === 'string' ? ch : ch.name;
+        const minAge = typeof ch === 'string' ? 0 : (ch.minAge || 0);
         await prisma.channel.create({
           data: {
             sportId: sport.id,
-            name: def.channels[c],
+            name,
             description: `Live ${def.name.toLowerCase()} coverage on Bax`,
             streamUrl: stream(streamIdx++),
             isLive: true,
             sortOrder: c,
+            minAge,
           },
         });
       }

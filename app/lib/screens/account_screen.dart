@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import '../state/app_state.dart';
 import '../theme.dart';
 import 'paywall_screen.dart';
+import 'parental_controls_screen.dart';
 
 class AccountScreen extends StatelessWidget {
   const AccountScreen({super.key});
@@ -149,6 +150,28 @@ class AccountScreen extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 24),
+            Container(
+              decoration: BoxDecoration(
+                  color: BaxColors.card,
+                  borderRadius: BorderRadius.circular(16)),
+              child: ListTile(
+                leading: const Icon(Icons.shield_outlined),
+                title: const Text('Parental controls'),
+                subtitle: Text(
+                  (user?.parentalControlsEnabled ?? false)
+                      ? 'On • limit ${(user?.maxContentRating ?? 18) == 0 ? 'All ages' : '${user?.maxContentRating}+'}'
+                          '${(user?.parentalPinSet ?? false) ? ' • PIN set' : ''}'
+                      : 'Off',
+                  style: TextStyle(color: BaxColors.muted),
+                ),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                        builder: (_) => const ParentalControlsScreen())),
+              ),
+            ),
+            const SizedBox(height: 12),
             ListTile(
               leading: const Icon(Icons.logout),
               title: const Text('Log out'),

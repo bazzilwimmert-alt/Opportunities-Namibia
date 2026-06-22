@@ -106,6 +106,7 @@ const channelSchema = z.object({
   isLive: z.boolean().optional(),
   active: z.boolean().optional(),
   sortOrder: z.number().optional(),
+  minAge: z.number().int().min(0).max(18).optional(),
 });
 
 router.post('/channels', async (req, res) => {

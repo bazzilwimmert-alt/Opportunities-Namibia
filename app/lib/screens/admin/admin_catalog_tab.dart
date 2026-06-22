@@ -67,10 +67,12 @@ class _AdminCatalogTabState extends State<AdminCatalogTab> {
     final name = TextEditingController();
     final url = TextEditingController();
     final desc = TextEditingController();
+    final minAge = TextEditingController(text: '0');
     final ok = await _formDialog('Add channel', [
       _field(name, 'Channel name'),
       _field(url, 'Stream URL (HLS/DASH/MP4)'),
       _field(desc, 'Description (optional)'),
+      _field(minAge, 'Age rating (0-18, 0 = all ages)', number: true),
     ]);
     if (ok == true) {
       await _run(() => widget.api.post('/api/admin/channels', {
@@ -78,6 +80,7 @@ class _AdminCatalogTabState extends State<AdminCatalogTab> {
             'name': name.text.trim(),
             'streamUrl': url.text.trim(),
             'description': desc.text.trim(),
+            'minAge': int.tryParse(minAge.text.trim()) ?? 0,
           }));
     }
   }
@@ -85,22 +88,28 @@ class _AdminCatalogTabState extends State<AdminCatalogTab> {
   Future<void> _editChannel(Map<String, dynamic> c, String sportId) async {
     final name = TextEditingController(text: c['name']);
     final url = TextEditingController(text: c['streamUrl'] ?? '');
+    final minAge = TextEditingController(text: '${c['minAge'] ?? 0}');
     final ok = await _formDialog('Edit channel', [
       _field(name, 'Channel name'),
       _field(url, 'Stream URL'),
+      _field(minAge, 'Age rating (0-18, 0 = all ages)', number: true),
     ]);
     if (ok == true) {
       await _run(() => widget.api.patch('/api/admin/channels/${c['id']}', {
             'name': name.text.trim(),
             'streamUrl': url.text.trim(),
+            'minAge': int.tryParse(minAge.text.trim()) ?? 0,
           }));
     }
   }
 
-  Widget _field(TextEditingController c, String hint) => Padding(
+  Widget _field(TextEditingController c, String hint, {bool number = false}) =>
+      Padding(
         padding: const EdgeInsets.only(bottom: 10),
         child: TextField(
-            controller: c, decoration: InputDecoration(hintText: hint)),
+            controller: c,
+            keyboardType: number ? TextInputType.number : null,
+            decoration: InputDecoration(hintText: hint)),
       );
 
   Future<bool?> _formDialog(String title, List<Widget> fields) {
@@ -162,7 +171,25 @@ class _AdminCatalogTabState extends State<AdminCatalogTab> {
                     final ch = c as Map<String, dynamic>;
                     return ListTile(
                       dense: true,
-                      title: Text(ch['name']),
+                      title: Row(
+                        children: [
+                          Flexible(child: Text(ch['name'])),
+                          if ((ch['minAge'] ?? 0) > 0) ...[
+                            const SizedBox(width: 6),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 5, vertical: 1),
+                              decoration: BoxDecoration(
+                                  color: BaxColors.accent,
+                                  borderRadius: BorderRadius.circular(4)),
+                              child: Text('${ch['minAge']}+',
+                                  style: const TextStyle(
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w800)),
+                            ),
+                          ],
+                        ],
+                      ),
                       subtitle: Text(ch['streamUrl'] ?? '',
                           maxLines: 1, overflow: TextOverflow.ellipsis),
                       trailing: Row(

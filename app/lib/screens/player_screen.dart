@@ -8,7 +8,8 @@ import '../theme.dart';
 
 class PlayerScreen extends StatefulWidget {
   final Channel channel;
-  const PlayerScreen({super.key, required this.channel});
+  final String? pin;
+  const PlayerScreen({super.key, required this.channel, this.pin});
 
   @override
   State<PlayerScreen> createState() => _PlayerScreenState();
@@ -29,7 +30,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
   Future<void> _init() async {
     try {
       final state = context.read<AppState>();
-      final url = await state.getPlayUrl(widget.channel.id);
+      final url = await state.getPlayUrl(widget.channel.id, pin: widget.pin);
       final video = VideoPlayerController.networkUrl(Uri.parse(url));
       await video.initialize();
       final chewie = ChewieController(

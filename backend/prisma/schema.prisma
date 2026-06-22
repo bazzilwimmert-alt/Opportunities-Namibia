@@ -18,6 +18,19 @@ model User {
   ageConfirmed    Boolean        @default(false)
   termsAcceptedAt DateTime?
   status          String         @default("ACTIVE") // ACTIVE | SUSPENDED
+
+  // Minor / guardian (registration requires a guardian for under-16s)
+  isMinor           Boolean   @default(false)
+  guardianName      String?
+  guardianEmail     String?
+  guardianConsentAt DateTime?
+
+  // Parental controls. When enabled, only channels with minAge <= maxContentRating
+  // are playable unless the guardian PIN is entered. Auto-enabled for minors.
+  parentalControlsEnabled Boolean @default(false)
+  maxContentRating        Int     @default(18) // highest channel minAge allowed
+  parentalPinHash         String?
+
   createdAt       DateTime       @default(now())
   updatedAt       DateTime       @updatedAt
 
@@ -93,6 +106,7 @@ model Channel {
   isLive      Boolean  @default(true)
   active      Boolean  @default(true)
   sortOrder   Int      @default(0)
+  minAge      Int      @default(0) // minimum age rating; gated by parental controls
   createdAt   DateTime @default(now())
 
   sport Sport @relation(fields: [sportId], references: [id], onDelete: Cascade)

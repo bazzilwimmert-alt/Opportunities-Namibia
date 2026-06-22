@@ -5,6 +5,7 @@ const { hashPassword, verifyPassword, signToken } = require('../utils/auth');
 const { ensureSubscription } = require('../services/subscription');
 const { authenticate } = require('../middleware/auth');
 const { serializeUser } = require('../utils/serialize');
+const { ageFromDob, MINOR_AGE } = require('../utils/age');
 
 const router = express.Router();
 
@@ -12,9 +13,12 @@ const signupSchema = z.object({
   email: z.string().email(),
   password: z.string().min(8, 'Password must be at least 8 characters'),
   fullName: z.string().min(2),
-  dateOfBirth: z.string().optional(),
-  ageConfirmed: z.boolean(),
+  dateOfBirth: z.string().min(1, 'Date of birth is required'),
   acceptTerms: z.boolean(),
+  // Required only when the registrant is under 16.
+  guardianName: z.string().optional(),
+  guardianEmail: z.string().email().optional(),
+  guardianConsent: z.boolean().optional(),
 });
 
 router.post('/signup', async (req, res) => {
@@ -22,13 +26,29 @@ router.post('/signup', async (req, res) => {
   if (!parsed.success) {
     return res.status(400).json({ error: parsed.error.errors[0].message });
   }
-  const { email, password, fullName, dateOfBirth, ageConfirmed, acceptTerms } = parsed.data;
+  const {
+    email, password, fullName, dateOfBirth, acceptTerms,
+    guardianName, guardianEmail, guardianConsent,
+  } = parsed.data;
 
-  if (!ageConfirmed) {
-    return res.status(400).json({ error: 'You must confirm you are 18 or older' });
+  const age = ageFromDob(dateOfBirth);
+  if (age == null || age < 0 || age > 120) {
+    return res.status(400).json({ error: 'Please enter a valid date of birth' });
   }
   if (!acceptTerms) {
     return res.status(400).json({ error: 'You must accept the Terms & Privacy Policy' });
+  }
+
+  const isMinor = age < MINOR_AGE;
+  if (isMinor) {
+    if (!guardianName || !guardianEmail) {
+      return res.status(400).json({
+        error: `Registrants under ${MINOR_AGE} must have a parent or guardian register on their behalf`,
+      });
+    }
+    if (!guardianConsent) {
+      return res.status(400).json({ error: 'A parent or guardian must give consent' });
+    }
   }
 
   const existing = await prisma.user.findUnique({ where: { email: email.toLowerCase() } });
@@ -41,9 +61,16 @@ router.post('/signup', async (req, res) => {
       email: email.toLowerCase(),
       passwordHash: await hashPassword(password),
       fullName,
-      dateOfBirth: dateOfBirth ? new Date(dateOfBirth) : null,
-      ageConfirmed,
+      dateOfBirth: new Date(dateOfBirth),
+      ageConfirmed: true,
       termsAcceptedAt: new Date(),
+      isMinor,
+      guardianName: isMinor ? guardianName : null,
+      guardianEmail: isMinor ? guardianEmail.toLowerCase() : null,
+      guardianConsentAt: isMinor ? new Date() : null,
+      // Parental controls are auto-enabled for minors and capped at their age.
+      parentalControlsEnabled: isMinor,
+      maxContentRating: isMinor ? age : 18,
     },
   });
 

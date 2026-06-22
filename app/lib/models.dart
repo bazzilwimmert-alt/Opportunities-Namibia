@@ -79,6 +79,12 @@ class User {
   final String fullName;
   final String role;
   final bool entitled;
+  final int? age;
+  final bool isMinor;
+  final bool parentalControlsEnabled;
+  final int maxContentRating;
+  final bool parentalPinSet;
+  final int allowedRating;
   final Subscription? subscription;
   final List<Profile> profiles;
 
@@ -88,6 +94,12 @@ class User {
     required this.fullName,
     required this.role,
     required this.entitled,
+    required this.age,
+    required this.isMinor,
+    required this.parentalControlsEnabled,
+    required this.maxContentRating,
+    required this.parentalPinSet,
+    required this.allowedRating,
     required this.subscription,
     required this.profiles,
   });
@@ -100,6 +112,12 @@ class User {
         fullName: j['fullName'] ?? '',
         role: j['role'] ?? 'USER',
         entitled: j['entitled'] ?? false,
+        age: j['age'],
+        isMinor: j['isMinor'] ?? false,
+        parentalControlsEnabled: j['parentalControlsEnabled'] ?? false,
+        maxContentRating: j['maxContentRating'] ?? 18,
+        parentalPinSet: j['parentalPinSet'] ?? false,
+        allowedRating: j['allowedRating'] ?? 18,
         subscription: j['subscription'] != null
             ? Subscription.fromJson(j['subscription'])
             : null,
@@ -118,6 +136,8 @@ class Channel {
   final bool isLive;
   final String? streamUrl;
   final bool locked;
+  final int minAge;
+  final bool parentalBlocked;
 
   Channel({
     required this.id,
@@ -128,6 +148,8 @@ class Channel {
     this.isLive = true,
     this.streamUrl,
     this.locked = true,
+    this.minAge = 0,
+    this.parentalBlocked = false,
   });
 
   factory Channel.fromJson(Map<String, dynamic> j) => Channel(
@@ -139,6 +161,8 @@ class Channel {
         isLive: j['isLive'] ?? true,
         streamUrl: j['streamUrl'],
         locked: j['locked'] ?? true,
+        minAge: j['minAge'] ?? 0,
+        parentalBlocked: j['parentalBlocked'] ?? false,
       );
 }
 

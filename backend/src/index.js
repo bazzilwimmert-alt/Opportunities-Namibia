@@ -12,6 +12,7 @@ const authRoutes = require('./routes/auth');
 const profileRoutes = require('./routes/profiles');
 const subscriptionRoutes = require('./routes/subscription');
 const catalogRoutes = require('./routes/catalog');
+const parentalRoutes = require('./routes/parental');
 const adminRoutes = require('./routes/admin');
 const webhookRoutes = require('./routes/webhooks');
 
@@ -39,6 +40,7 @@ app.use('/api/auth', authLimiter, authRoutes);
 app.use('/api/profiles', profileRoutes);
 app.use('/api/subscription', subscriptionRoutes);
 app.use('/api/catalog', catalogRoutes);
+app.use('/api/parental', parentalRoutes);
 app.use('/api/admin', adminRoutes);
 
 app.use((req, res) => res.status(404).json({ error: 'Not found' }));
