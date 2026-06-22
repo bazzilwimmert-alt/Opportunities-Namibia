@@ -1,4 +1,4 @@
-// Bax streaming platform data model
+// Opportunities Namibia - jobs board data model
 generator client {
   provider = "prisma-client-js"
 }
@@ -9,34 +9,20 @@ datasource db {
 }
 
 model User {
-  id              String         @id @default(cuid())
-  email           String         @unique
+  id              String   @id @default(cuid())
+  email           String   @unique
   passwordHash    String
   fullName        String
-  role            String         @default("USER") // USER | ADMIN
-  dateOfBirth     DateTime?
-  ageConfirmed    Boolean        @default(false)
+  phone           String?
+  role            String   @default("USER") // USER | ADMIN
   termsAcceptedAt DateTime?
-  status          String         @default("ACTIVE") // ACTIVE | SUSPENDED
+  status          String   @default("ACTIVE") // ACTIVE | SUSPENDED
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 
-  // Minor / guardian (registration requires a guardian for under-16s)
-  isMinor           Boolean   @default(false)
-  guardianName      String?
-  guardianEmail     String?
-  guardianConsentAt DateTime?
-
-  // Parental controls. When enabled, only channels with minAge <= maxContentRating
-  // are playable unless the guardian PIN is entered. Auto-enabled for minors.
-  parentalControlsEnabled Boolean @default(false)
-  maxContentRating        Int     @default(18) // highest channel minAge allowed
-  parentalPinHash         String?
-
-  createdAt       DateTime       @default(now())
-  updatedAt       DateTime       @updatedAt
-
-  profiles      Profile[]
-  subscription  Subscription?
-  payments      Payment[]
+  profiles     Profile[]
+  membership   Membership?
+  payments     PaymentClaim[]
 }
 
 // Each account can have up to 2 profiles.
@@ -45,71 +31,84 @@ model Profile {
   userId    String
   name      String
   avatar    String?
-  isKids    Boolean  @default(false)
+  headline  String?
   createdAt DateTime @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
-model Subscription {
-  id                String    @id @default(cuid())
-  userId            String    @unique
-  // ACTIVE = paid & streaming allowed, PAST_DUE = payment lapsed (rights revoked),
-  // CANCELED = user canceled, TRIALING, INACTIVE = never paid
-  status            String    @default("INACTIVE")
-  priceCents        Int       @default(20000) // N$200.00
-  currency          String    @default("NAD")
-  currentPeriodEnd  DateTime?
-  cancelAtPeriodEnd Boolean   @default(false)
-  createdAt         DateTime  @default(now())
-  updatedAt         DateTime  @updatedAt
+// 6-month paid access to vacancies. Activated by an admin after confirming a
+// manual mobile payment; auto-expires at period end.
+model Membership {
+  id               String    @id @default(cuid())
+  userId           String    @unique
+  // INACTIVE = never paid, PENDING = payment submitted, awaiting admin confirm,
+  // ACTIVE = access granted, EXPIRED = period elapsed
+  status           String    @default("INACTIVE")
+  priceCents       Int       @default(20000) // N$200.00
+  currency         String    @default("NAD")
+  periodMonths     Int       @default(6)
+  currentPeriodEnd DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
-model Payment {
-  id            String   @id @default(cuid())
-  userId        String
-  amountCents   Int
-  currency      String   @default("NAD")
-  status        String   @default("PENDING") // PENDING | PAID | FAILED | REFUNDED
-  provider      String   @default("paytoday")
-  providerRef   String?  // PayToday transaction reference
-  periodStart   DateTime?
-  periodEnd     DateTime?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+// A user-submitted record that they paid the admin's mobile number. The admin
+// reviews and confirms it, which grants 6 months of access.
+model PaymentClaim {
+  id           String    @id @default(cuid())
+  userId       String
+  amountCents  Int       @default(20000)
+  currency     String    @default("NAD")
+  reference    String?   // payer reference / note the user provides
+  payerPhone   String?   // number the user paid from
+  status       String    @default("PENDING") // PENDING | CONFIRMED | REJECTED
+  reviewedAt   DateTime?
+  reviewedById String?
+  periodStart  DateTime?
+  periodEnd    DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
-model Sport {
-  id        String    @id @default(cuid())
-  name      String
-  slug      String    @unique
-  icon      String?
-  sortOrder Int       @default(0)
-  active    Boolean   @default(true)
-  createdAt DateTime  @default(now())
-
-  channels Channel[]
+model Job {
+  id          String    @id @default(cuid())
+  title       String
+  company     String
+  location    String    @default("Namibia")
+  category    String    @default("General") // IT, Construction, Healthcare, ...
+  type        String    @default("FULL_TIME") // FULL_TIME|PART_TIME|CONTRACT|TEMPORARY|INTERNSHIP
+  skillLevel  String    @default("SKILLED") // SKILLED | UNSKILLED
+  description String
+  salary      String?
+  applyUrl    String?
+  applyEmail  String?
+  contact     String?
+  source      String    @default("MANUAL") // MANUAL | RSS | LINKEDIN
+  externalId  String?   @unique // dedupe key for ingested jobs
+  postedAt    DateTime  @default(now())
+  expiresAt   DateTime?
+  active      Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 }
 
-model Channel {
-  id          String   @id @default(cuid())
-  sportId     String
-  name        String
-  description String?
-  logo        String?
-  streamUrl   String   // HLS/DASH manifest URL
-  poster      String?
-  isLive      Boolean  @default(true)
-  active      Boolean  @default(true)
-  sortOrder   Int      @default(0)
-  minAge      Int      @default(0) // minimum age rating; gated by parental controls
-  createdAt   DateTime @default(now())
-
-  sport Sport @relation(fields: [sportId], references: [id], onDelete: Cascade)
+// Configurable online sources the ingestion job pulls vacancies from.
+model JobSource {
+  id            String    @id @default(cuid())
+  name          String
+  type          String    @default("RSS") // RSS | LINKEDIN
+  url           String
+  category      String?   // default category to tag ingested jobs
+  enabled       Boolean   @default(true)
+  lastFetchedAt DateTime?
+  lastResult    String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
 }
 
 // Editable platform-wide settings the admin controls online.

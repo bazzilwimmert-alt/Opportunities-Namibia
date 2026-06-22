@@ -1,7 +1,7 @@
 {
-  "name": "bax-backend",
+  "name": "opportunities-namibia-backend",
   "version": "1.0.0",
-  "description": "Bax live sports streaming platform - backend API",
+  "description": "Opportunities Namibia jobs board - backend API",
   "main": "src/index.js",
   "scripts": {
     "dev": "nodemon src/index.js",
@@ -11,7 +11,7 @@
     "generate": "prisma generate",
     "db:push": "prisma db push",
     "lint": "eslint src",
-    "billing:run": "node src/jobs/runBilling.js"
+    "maintenance:run": "node src/jobs/runMaintenance.js"
   },
   "prisma": {
     "seed": "node src/seed.js"

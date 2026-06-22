@@ -9,11 +9,12 @@ class AppState extends ChangeNotifier {
   AppInfo? appInfo;
   User? user;
   Profile? activeProfile;
-  List<Sport> sports = [];
+  List<Job> jobs = [];
+  List<String> categories = [];
   bool booting = true;
 
   bool get isLoggedIn => user != null;
-  bool get isEntitled => user?.entitled ?? false;
+  bool get hasAccess => user?.hasAccess ?? false;
 
   Future<void> bootstrap() async {
     booting = true;
@@ -24,12 +25,13 @@ class AppState extends ChangeNotifier {
     } catch (_) {}
 
     final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('bax_token');
+    final token = prefs.getString('opp_token');
     if (token != null) {
       api.setToken(token);
       try {
         final me = await api.get('/api/auth/me');
         user = User.fromJson(me['user']);
+        activeProfile = user!.profiles.isNotEmpty ? user!.profiles.first : null;
       } catch (_) {
         await _clearToken();
       }
@@ -40,13 +42,13 @@ class AppState extends ChangeNotifier {
 
   Future<void> _persistToken(String token) async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('bax_token', token);
+    await prefs.setString('opp_token', token);
     api.setToken(token);
   }
 
   Future<void> _clearToken() async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.remove('bax_token');
+    await prefs.remove('opp_token');
     api.setToken(null);
   }
 
@@ -65,21 +67,15 @@ class AppState extends ChangeNotifier {
     required String email,
     required String password,
     required String fullName,
-    required String dateOfBirth,
+    String? phone,
     required bool acceptTerms,
-    String? guardianName,
-    String? guardianEmail,
-    bool? guardianConsent,
   }) async {
     final res = await api.post('/api/auth/signup', {
       'email': email,
       'password': password,
       'fullName': fullName,
-      'dateOfBirth': dateOfBirth,
+      if (phone != null && phone.isNotEmpty) 'phone': phone,
       'acceptTerms': acceptTerms,
-      if (guardianName != null) 'guardianName': guardianName,
-      if (guardianEmail != null) 'guardianEmail': guardianEmail,
-      if (guardianConsent != null) 'guardianConsent': guardianConsent,
     });
     await _persistToken(res['token']);
     user = User.fromJson(res['user']);
@@ -91,7 +87,7 @@ class AppState extends ChangeNotifier {
     await _clearToken();
     user = null;
     activeProfile = null;
-    sports = [];
+    jobs = [];
     notifyListeners();
   }
 
@@ -106,63 +102,52 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
-  // ---- Catalog ----
-  Future<void> loadCatalog() async {
-    final res = await api.get('/api/catalog/sports');
-    sports = (res['sports'] as List).map((e) => Sport.fromJson(e)).toList();
-    notifyListeners();
-  }
-
-  Future<String> getPlayUrl(String channelId, {String? pin}) async {
-    final path = '/api/catalog/channels/$channelId/play'
-        '${pin != null ? '?pin=$pin' : ''}';
-    final res = await api.get(path);
-    return res['streamUrl'] as String;
-  }
-
-  // ---- Parental controls ----
-  Future<void> updateParentalSettings({
-    bool? enabled,
-    int? maxContentRating,
-    String? pin,
+  // ---- Vacancies ----
+  Future<void> loadJobs({
+    String? q,
+    String? category,
+    String? skillLevel,
+    String? type,
   }) async {
-    final res = await api.put('/api/parental', {
-      if (enabled != null) 'enabled': enabled,
-      if (maxContentRating != null) 'maxContentRating': maxContentRating,
-      if (pin != null) 'pin': pin,
-    });
-    user = User.fromJson(res['user']);
+    final params = <String, String>{};
+    if (q != null && q.isNotEmpty) params['q'] = q;
+    if (category != null && category.isNotEmpty) params['category'] = category;
+    if (skillLevel != null && skillLevel.isNotEmpty) params['skillLevel'] = skillLevel;
+    if (type != null && type.isNotEmpty) params['type'] = type;
+    final query = params.isEmpty
+        ? ''
+        : '?${params.entries.map((e) => '${e.key}=${Uri.encodeQueryComponent(e.value)}').join('&')}';
+    final res = await api.get('/api/jobs$query');
+    jobs = (res['jobs'] as List).map((e) => Job.fromJson(e)).toList();
     notifyListeners();
   }
 
-  Future<void> setParentalPin({String? currentPin, required String newPin}) async {
-    final res = await api.put('/api/parental/pin', {
-      if (currentPin != null) 'currentPin': currentPin,
-      'newPin': newPin,
-    });
-    user = User.fromJson(res['user']);
+  Future<void> loadCategories() async {
+    final res = await api.get('/api/jobs/categories');
+    categories = (res['categories'] as List).map((e) => e.toString()).toList();
     notifyListeners();
   }
 
-  // ---- Subscription / payment ----
-  Future<Map<String, dynamic>> startCheckout() async {
-    final res = await api.post('/api/subscription/checkout', {});
+  // ---- Membership / manual payment ----
+  Future<Map<String, dynamic>> getMembership() async {
+    final res = await api.get('/api/membership');
     return Map<String, dynamic>.from(res);
   }
 
-  Future<void> confirmSandboxPayment(String paymentId) async {
-    await api.post('/api/subscription/sandbox/confirm', {'paymentId': paymentId});
-    await refreshUser();
-  }
-
-  Future<void> cancelSubscription() async {
-    await api.post('/api/subscription/cancel', {});
+  Future<void> submitPayment({String? reference, String? payerPhone}) async {
+    await api.post('/api/membership/pay', {
+      if (reference != null) 'reference': reference,
+      if (payerPhone != null) 'payerPhone': payerPhone,
+    });
     await refreshUser();
   }
 
   // ---- Profiles ----
-  Future<void> createProfile(String name, {bool isKids = false}) async {
-    await api.post('/api/profiles', {'name': name, 'isKids': isKids});
+  Future<void> createProfile(String name, {String? headline}) async {
+    await api.post('/api/profiles', {
+      'name': name,
+      if (headline != null && headline.isNotEmpty) 'headline': headline,
+    });
     await refreshUser();
   }
 

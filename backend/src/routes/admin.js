@@ -2,29 +2,30 @@ const express = require('express');
 const { z } = require('zod');
 const prisma = require('../db');
 const { authenticate, requireAdmin } = require('../middleware/auth');
-const { activateForPaidPeriod, MONTH_MS } = require('../services/subscription');
+const { activateForPeriod } = require('../services/membership');
+const { ingestSource, ingestAll } = require('../services/ingest');
 
 const router = express.Router();
-
 router.use(authenticate, requireAdmin);
 
 // ---- Dashboard stats ----
 router.get('/stats', async (req, res) => {
-  const [users, activeSubs, pastDue, sports, channels, payments] = await Promise.all([
-    prisma.user.count(),
-    prisma.subscription.count({ where: { status: 'ACTIVE' } }),
-    prisma.subscription.count({ where: { status: 'PAST_DUE' } }),
-    prisma.sport.count(),
-    prisma.channel.count(),
-    prisma.payment.findMany({ where: { status: 'PAID' } }),
-  ]);
-  const revenueCents = payments.reduce((sum, p) => sum + p.amountCents, 0);
+  const [users, activeMembers, pendingClaims, jobs, sources, confirmed] =
+    await Promise.all([
+      prisma.user.count(),
+      prisma.membership.count({ where: { status: 'ACTIVE' } }),
+      prisma.paymentClaim.count({ where: { status: 'PENDING' } }),
+      prisma.job.count({ where: { active: true } }),
+      prisma.jobSource.count(),
+      prisma.paymentClaim.findMany({ where: { status: 'CONFIRMED' } }),
+    ]);
+  const revenueCents = confirmed.reduce((sum, p) => sum + p.amountCents, 0);
   return res.json({
     users,
-    activeSubscriptions: activeSubs,
-    pastDueSubscriptions: pastDue,
-    sports,
-    channels,
+    activeMembers,
+    pendingClaims,
+    jobs,
+    sources,
     revenueCents,
     currency: 'NAD',
   });
@@ -34,7 +35,7 @@ router.get('/stats', async (req, res) => {
 router.get('/users', async (req, res) => {
   const users = await prisma.user.findMany({
     orderBy: { createdAt: 'desc' },
-    include: { subscription: true, profiles: true },
+    include: { membership: true, profiles: true },
   });
   return res.json({ users });
 });
@@ -50,82 +51,150 @@ router.patch('/users/:id', async (req, res) => {
   return res.json({ user });
 });
 
-// Admin can grant/revoke a user's streaming rights directly.
-router.post('/users/:id/subscription', async (req, res) => {
-  const schema = z.object({ action: z.enum(['grant', 'revoke']) });
+// Directly grant or revoke a user's access (independent of a payment claim).
+router.post('/users/:id/access', async (req, res) => {
+  const schema = z.object({
+    action: z.enum(['grant', 'revoke']),
+    months: z.number().int().min(1).max(24).optional(),
+  });
   const parsed = schema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: 'Invalid action' });
 
   if (parsed.data.action === 'grant') {
-    const sub = await activateForPaidPeriod(req.params.id, new Date(Date.now() + MONTH_MS));
-    return res.json({ subscription: sub });
+    const m = await activateForPeriod(req.params.id, parsed.data.months);
+    return res.json({ membership: m });
   }
-  const sub = await prisma.subscription.update({
+  const m = await prisma.membership.update({
     where: { userId: req.params.id },
-    data: { status: 'PAST_DUE', currentPeriodEnd: new Date() },
+    data: { status: 'EXPIRED', currentPeriodEnd: new Date() },
   });
-  return res.json({ subscription: sub });
+  return res.json({ membership: m });
 });
 
-// ---- Sports ----
-const sportSchema = z.object({
-  name: z.string().min(1),
-  slug: z.string().min(1),
-  icon: z.string().optional(),
-  sortOrder: z.number().optional(),
+// ---- Payment claims ----
+router.get('/payments', async (req, res) => {
+  const { status } = req.query;
+  const where = status ? { status } : {};
+  const payments = await prisma.paymentClaim.findMany({
+    where,
+    orderBy: { createdAt: 'desc' },
+    include: { user: { select: { id: true, email: true, fullName: true, phone: true } } },
+  });
+  return res.json({ payments });
+});
+
+// Confirm a payment -> grants a full membership period.
+router.post('/payments/:id/confirm', async (req, res) => {
+  const claim = await prisma.paymentClaim.findUnique({ where: { id: req.params.id } });
+  if (!claim) return res.status(404).json({ error: 'Payment claim not found' });
+  if (claim.status === 'CONFIRMED') return res.json({ claim });
+
+  const membership = await activateForPeriod(claim.userId);
+  const updated = await prisma.paymentClaim.update({
+    where: { id: claim.id },
+    data: {
+      status: 'CONFIRMED',
+      reviewedAt: new Date(),
+      reviewedById: req.user.id,
+      periodStart: new Date(),
+      periodEnd: membership.currentPeriodEnd,
+    },
+  });
+  return res.json({ claim: updated, membership });
+});
+
+router.post('/payments/:id/reject', async (req, res) => {
+  const claim = await prisma.paymentClaim.update({
+    where: { id: req.params.id },
+    data: { status: 'REJECTED', reviewedAt: new Date(), reviewedById: req.user.id },
+  });
+  return res.json({ claim });
+});
+
+// ---- Jobs (vacancies) ----
+const jobSchema = z.object({
+  title: z.string().min(1),
+  company: z.string().min(1),
+  location: z.string().optional(),
+  category: z.string().optional(),
+  type: z.enum(['FULL_TIME', 'PART_TIME', 'CONTRACT', 'TEMPORARY', 'INTERNSHIP']).optional(),
+  skillLevel: z.enum(['SKILLED', 'UNSKILLED']).optional(),
+  description: z.string().min(1),
+  salary: z.string().optional(),
+  applyUrl: z.string().optional(),
+  applyEmail: z.string().optional(),
+  contact: z.string().optional(),
   active: z.boolean().optional(),
 });
 
-router.post('/sports', async (req, res) => {
-  const parsed = sportSchema.safeParse(req.body);
-  if (!parsed.success) return res.status(400).json({ error: parsed.error.errors[0].message });
-  const sport = await prisma.sport.create({ data: parsed.data });
-  return res.status(201).json({ sport });
+router.get('/jobs', async (req, res) => {
+  const jobs = await prisma.job.findMany({ orderBy: { postedAt: 'desc' }, take: 500 });
+  return res.json({ jobs });
 });
 
-router.patch('/sports/:id', async (req, res) => {
-  const parsed = sportSchema.partial().safeParse(req.body);
+router.post('/jobs', async (req, res) => {
+  const parsed = jobSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: parsed.error.errors[0].message });
-  const sport = await prisma.sport.update({ where: { id: req.params.id }, data: parsed.data });
-  return res.json({ sport });
+  const job = await prisma.job.create({ data: { ...parsed.data, source: 'MANUAL' } });
+  return res.status(201).json({ job });
 });
 
-router.delete('/sports/:id', async (req, res) => {
-  await prisma.sport.delete({ where: { id: req.params.id } });
+router.patch('/jobs/:id', async (req, res) => {
+  const parsed = jobSchema.partial().safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: parsed.error.errors[0].message });
+  const job = await prisma.job.update({ where: { id: req.params.id }, data: parsed.data });
+  return res.json({ job });
+});
+
+router.delete('/jobs/:id', async (req, res) => {
+  await prisma.job.delete({ where: { id: req.params.id } });
   return res.json({ ok: true });
 });
 
-// ---- Channels ----
-const channelSchema = z.object({
-  sportId: z.string().min(1),
+// ---- Job sources (auto-ingestion) ----
+const sourceSchema = z.object({
   name: z.string().min(1),
-  description: z.string().optional(),
-  logo: z.string().optional(),
-  streamUrl: z.string().min(1),
-  poster: z.string().optional(),
-  isLive: z.boolean().optional(),
-  active: z.boolean().optional(),
-  sortOrder: z.number().optional(),
-  minAge: z.number().int().min(0).max(18).optional(),
+  type: z.enum(['RSS', 'LINKEDIN']).optional(),
+  url: z.string().min(1),
+  category: z.string().optional(),
+  enabled: z.boolean().optional(),
 });
 
-router.post('/channels', async (req, res) => {
-  const parsed = channelSchema.safeParse(req.body);
+router.get('/sources', async (req, res) => {
+  const sources = await prisma.jobSource.findMany({ orderBy: { createdAt: 'asc' } });
+  return res.json({ sources });
+});
+
+router.post('/sources', async (req, res) => {
+  const parsed = sourceSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: parsed.error.errors[0].message });
-  const channel = await prisma.channel.create({ data: parsed.data });
-  return res.status(201).json({ channel });
+  const source = await prisma.jobSource.create({ data: parsed.data });
+  return res.status(201).json({ source });
 });
 
-router.patch('/channels/:id', async (req, res) => {
-  const parsed = channelSchema.partial().safeParse(req.body);
+router.patch('/sources/:id', async (req, res) => {
+  const parsed = sourceSchema.partial().safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: parsed.error.errors[0].message });
-  const channel = await prisma.channel.update({ where: { id: req.params.id }, data: parsed.data });
-  return res.json({ channel });
+  const source = await prisma.jobSource.update({ where: { id: req.params.id }, data: parsed.data });
+  return res.json({ source });
 });
 
-router.delete('/channels/:id', async (req, res) => {
-  await prisma.channel.delete({ where: { id: req.params.id } });
+router.delete('/sources/:id', async (req, res) => {
+  await prisma.jobSource.delete({ where: { id: req.params.id } });
   return res.json({ ok: true });
+});
+
+// Trigger ingestion now: a single source, or all enabled sources.
+router.post('/sources/:id/fetch', async (req, res) => {
+  const source = await prisma.jobSource.findUnique({ where: { id: req.params.id } });
+  if (!source) return res.status(404).json({ error: 'Source not found' });
+  const result = await ingestSource(source);
+  return res.json({ result });
+});
+
+router.post('/ingest', async (req, res) => {
+  const result = await ingestAll();
+  return res.json({ result });
 });
 
 // ---- Platform settings (editable online) ----

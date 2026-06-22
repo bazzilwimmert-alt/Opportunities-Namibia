@@ -3,8 +3,10 @@ import 'package:provider/provider.dart';
 import '../../state/app_state.dart';
 import '../../theme.dart';
 import 'admin_overview_tab.dart';
+import 'admin_payments_tab.dart';
 import 'admin_users_tab.dart';
-import 'admin_catalog_tab.dart';
+import 'admin_jobs_tab.dart';
+import 'admin_sources_tab.dart';
 import 'admin_settings_tab.dart';
 
 class AdminDashboard extends StatelessWidget {
@@ -14,7 +16,7 @@ class AdminDashboard extends StatelessWidget {
   Widget build(BuildContext context) {
     final api = context.read<AppState>().api;
     return DefaultTabController(
-      length: 4,
+      length: 6,
       child: Scaffold(
         appBar: AppBar(
           title: const Text('Admin Console'),
@@ -25,8 +27,10 @@ class AdminDashboard extends StatelessWidget {
             unselectedLabelColor: BaxColors.muted,
             tabs: [
               Tab(text: 'Overview'),
+              Tab(text: 'Payments'),
               Tab(text: 'Users'),
-              Tab(text: 'Sports & Channels'),
+              Tab(text: 'Vacancies'),
+              Tab(text: 'Sources'),
               Tab(text: 'Settings'),
             ],
           ),
@@ -34,8 +38,10 @@ class AdminDashboard extends StatelessWidget {
         body: TabBarView(
           children: [
             AdminOverviewTab(api: api),
+            AdminPaymentsTab(api: api),
             AdminUsersTab(api: api),
-            AdminCatalogTab(api: api),
+            AdminJobsTab(api: api),
+            AdminSourcesTab(api: api),
             AdminSettingsTab(api: api),
           ],
         ),

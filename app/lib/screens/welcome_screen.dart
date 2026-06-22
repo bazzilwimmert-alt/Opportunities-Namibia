@@ -12,8 +12,10 @@ class WelcomeScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final info = context.watch<AppState>().appInfo;
-    final sports = ['⚽ Soccer', '🏀 Basketball', '🏎️ Formula 1', '🎾 Tennis',
-        '🏏 Cricket', '🏉 Rugby', '🏈 NFL', '🏊 Swimming'];
+    final categories = [
+      'IT', 'Healthcare', 'Engineering', 'Education', 'Trades', 'Finance',
+      'Hospitality', 'Security', 'Agriculture', 'General',
+    ];
 
     return Scaffold(
       body: SafeArea(
@@ -26,10 +28,10 @@ class WelcomeScreen extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   const SizedBox(height: 24),
-                  const Center(child: BaxLogo(size: 64)),
+                  const Center(child: BaxLogo(size: 56)),
                   const SizedBox(height: 28),
                   Text(
-                    info?.tagline ?? 'All sports. One subscription.',
+                    info?.tagline ?? 'Every Namibian job. One membership.',
                     textAlign: TextAlign.center,
                     style: const TextStyle(
                       fontSize: 26,
@@ -39,8 +41,8 @@ class WelcomeScreen extends StatelessWidget {
                   ),
                   const SizedBox(height: 12),
                   Text(
-                    'Stream live soccer, basketball, Formula 1, tennis, cricket, '
-                    'rugby, American football and more — on any device.',
+                    'Browse and apply for skilled and unskilled vacancies across '
+                    'Namibia — new jobs added every day.',
                     textAlign: TextAlign.center,
                     style: TextStyle(color: BaxColors.muted, fontSize: 15, height: 1.4),
                   ),
@@ -49,7 +51,7 @@ class WelcomeScreen extends StatelessWidget {
                     alignment: WrapAlignment.center,
                     spacing: 8,
                     runSpacing: 8,
-                    children: sports
+                    children: categories
                         .map((s) => Chip(
                               label: Text(s),
                               backgroundColor: BaxColors.card,
@@ -68,7 +70,7 @@ class WelcomeScreen extends StatelessWidget {
                     child: Column(
                       children: [
                         Text(
-                          info?.priceDisplay ?? 'N\$200/month',
+                          info?.priceDisplay ?? 'N\$200 / 6 months',
                           style: const TextStyle(
                             fontSize: 28,
                             fontWeight: FontWeight.w900,
@@ -76,7 +78,8 @@ class WelcomeScreen extends StatelessWidget {
                           ),
                         ),
                         const SizedBox(height: 4),
-                        Text('Cancel anytime • Up to 2 profiles',
+                        Text('Full access to all vacancies • Up to 2 profiles',
+                            textAlign: TextAlign.center,
                             style: TextStyle(color: BaxColors.muted)),
                       ],
                     ),

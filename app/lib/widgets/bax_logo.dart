@@ -3,7 +3,8 @@ import '../theme.dart';
 
 class BaxLogo extends StatelessWidget {
   final double size;
-  const BaxLogo({super.key, this.size = 48});
+  final bool showText;
+  const BaxLogo({super.key, this.size = 48, this.showText = true});
 
   @override
   Widget build(BuildContext context) {
@@ -23,24 +24,44 @@ class BaxLogo extends StatelessWidget {
           ),
           alignment: Alignment.center,
           child: Text(
-            'B',
+            'ON',
             style: TextStyle(
-              fontSize: size * 0.58,
+              fontSize: size * 0.4,
               fontWeight: FontWeight.w900,
               color: Colors.black,
             ),
           ),
         ),
-        SizedBox(width: size * 0.28),
-        Text(
-          'Bax',
-          style: TextStyle(
-            fontSize: size * 0.72,
-            fontWeight: FontWeight.w900,
-            letterSpacing: -1,
-            color: BaxColors.text,
+        if (showText) ...[
+          SizedBox(width: size * 0.28),
+          Flexible(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Opportunities',
+                  style: TextStyle(
+                    fontSize: size * 0.42,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: -0.5,
+                    height: 1.0,
+                    color: BaxColors.text,
+                  ),
+                ),
+                Text(
+                  'NAMIBIA',
+                  style: TextStyle(
+                    fontSize: size * 0.24,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 3,
+                    color: BaxColors.primary,
+                  ),
+                ),
+              ],
+            ),
           ),
-        ),
+        ],
       ],
     );
   }

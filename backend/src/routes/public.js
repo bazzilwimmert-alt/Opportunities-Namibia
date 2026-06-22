@@ -4,22 +4,28 @@ const config = require('../config');
 
 const router = express.Router();
 
-// Public, unauthenticated app config (branding, pricing, legal copy).
+// Public, unauthenticated app config (branding, pricing, payment info, legal).
 router.get('/config', async (req, res) => {
   const settings = await prisma.setting.findMany();
   const map = Object.fromEntries(settings.map((s) => [s.key, s.value]));
+  const months = config.membership.periodMonths;
   return res.json({
-    appName: map.appName || 'Bax',
-    tagline: map.tagline || 'All sports. One subscription.',
+    appName: map.appName || 'Opportunities Namibia',
+    tagline: map.tagline || 'Every Namibian job. One membership.',
     price: {
-      cents: config.subscription.priceCents,
-      currency: config.subscription.currency,
-      display: `N$${(config.subscription.priceCents / 100).toFixed(0)}/month`,
+      cents: config.membership.priceCents,
+      currency: config.membership.currency,
+      periodMonths: months,
+      display: `N$${(config.membership.priceCents / 100).toFixed(0)} / ${months} months`,
+    },
+    payment: {
+      phone: map.paymentPhone || config.payment.phone,
+      accountName: map.paymentAccountName || config.payment.accountName,
     },
     maxProfiles: config.maxProfilesPerAccount,
     termsUrl: map.termsUrl || '',
     privacyUrl: map.privacyUrl || '',
-    supportEmail: map.supportEmail || 'support@bax.tv',
+    supportEmail: map.supportEmail || 'support@opportunities.na',
   });
 });
 

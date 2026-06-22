@@ -1,5 +1,4 @@
-const { isEntitled } = require('../services/subscription');
-const { ageFromDob, allowedRating } = require('./age');
+const { hasAccess } = require('../services/membership');
 
 function serializeUser(user) {
   if (!user) return null;
@@ -7,38 +6,57 @@ function serializeUser(user) {
     id: user.id,
     email: user.email,
     fullName: user.fullName,
+    phone: user.phone,
     role: user.role,
     status: user.status,
-    ageConfirmed: user.ageConfirmed,
-    dateOfBirth: user.dateOfBirth,
-    age: ageFromDob(user.dateOfBirth),
-    isMinor: user.isMinor,
-    guardianName: user.guardianName,
-    guardianEmail: user.guardianEmail,
-    parentalControlsEnabled: user.parentalControlsEnabled,
-    maxContentRating: user.maxContentRating,
-    parentalPinSet: !!user.parentalPinHash,
-    allowedRating: allowedRating(user),
     createdAt: user.createdAt,
-    subscription: serializeSubscription(user.subscription),
-    entitled: isEntitled(user.subscription),
+    membership: serializeMembership(user.membership),
+    hasAccess: hasAccess(user.membership),
     profiles: (user.profiles || []).map(serializeProfile),
   };
 }
 
-function serializeSubscription(sub) {
-  if (!sub) return null;
+function serializeMembership(m) {
+  if (!m) return null;
   return {
-    status: sub.status,
-    priceCents: sub.priceCents,
-    currency: sub.currency,
-    currentPeriodEnd: sub.currentPeriodEnd,
-    cancelAtPeriodEnd: sub.cancelAtPeriodEnd,
+    status: m.status,
+    priceCents: m.priceCents,
+    currency: m.currency,
+    periodMonths: m.periodMonths,
+    currentPeriodEnd: m.currentPeriodEnd,
   };
 }
 
 function serializeProfile(p) {
-  return { id: p.id, name: p.name, avatar: p.avatar, isKids: p.isKids };
+  return { id: p.id, name: p.name, avatar: p.avatar, headline: p.headline };
 }
 
-module.exports = { serializeUser, serializeSubscription, serializeProfile };
+function serializeJob(job, { full }) {
+  const base = {
+    id: job.id,
+    title: job.title,
+    company: job.company,
+    location: job.location,
+    category: job.category,
+    type: job.type,
+    skillLevel: job.skillLevel,
+    salary: job.salary,
+    source: job.source,
+    postedAt: job.postedAt,
+  };
+  if (!full) {
+    // Locked preview: withhold description and apply details until member pays.
+    return { ...base, locked: true };
+  }
+  return {
+    ...base,
+    locked: false,
+    description: job.description,
+    applyUrl: job.applyUrl,
+    applyEmail: job.applyEmail,
+    contact: job.contact,
+    expiresAt: job.expiresAt,
+  };
+}
+
+module.exports = { serializeUser, serializeMembership, serializeProfile, serializeJob };

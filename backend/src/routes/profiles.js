@@ -20,7 +20,7 @@ router.get('/', async (req, res) => {
 const profileSchema = z.object({
   name: z.string().min(1).max(30),
   avatar: z.string().optional(),
-  isKids: z.boolean().optional(),
+  headline: z.string().max(120).optional(),
 });
 
 router.post('/', async (req, res) => {

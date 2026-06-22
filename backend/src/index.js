@@ -5,16 +5,15 @@ const morgan = require('morgan');
 const rateLimit = require('express-rate-limit');
 
 const config = require('./config');
-const { revokeExpiredSubscriptions } = require('./services/subscription');
+const { expireMemberships } = require('./services/membership');
+const { ingestAll } = require('./services/ingest');
 
 const publicRoutes = require('./routes/public');
 const authRoutes = require('./routes/auth');
 const profileRoutes = require('./routes/profiles');
-const subscriptionRoutes = require('./routes/subscription');
-const catalogRoutes = require('./routes/catalog');
-const parentalRoutes = require('./routes/parental');
+const membershipRoutes = require('./routes/membership');
+const jobRoutes = require('./routes/jobs');
 const adminRoutes = require('./routes/admin');
-const webhookRoutes = require('./routes/webhooks');
 
 const app = express();
 
@@ -25,22 +24,18 @@ app.use(
   })
 );
 app.use(morgan('dev'));
-
-// PayToday webhooks need the raw body for signature verification.
-app.use('/api/webhooks', express.raw({ type: '*/*' }), webhookRoutes);
-
 app.use(express.json());
 
 const authLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 50 });
 
-app.get('/api/health', (req, res) => res.json({ ok: true, service: 'bax-backend' }));
+app.get('/api/health', (req, res) =>
+  res.json({ ok: true, service: 'opportunities-namibia-backend' }));
 
 app.use('/api/public', publicRoutes);
 app.use('/api/auth', authLimiter, authRoutes);
 app.use('/api/profiles', profileRoutes);
-app.use('/api/subscription', subscriptionRoutes);
-app.use('/api/catalog', catalogRoutes);
-app.use('/api/parental', parentalRoutes);
+app.use('/api/membership', membershipRoutes);
+app.use('/api/jobs', jobRoutes);
 app.use('/api/admin', adminRoutes);
 
 app.use((req, res) => res.status(404).json({ error: 'Not found' }));
@@ -51,19 +46,28 @@ app.use((err, req, res, next) => {
   res.status(500).json({ error: 'Internal server error' });
 });
 
-// Periodically revoke streaming rights for subscriptions whose paid period has
-// lapsed (runs hourly; also runnable as a cron via npm run billing:run).
-const BILLING_INTERVAL_MS = 60 * 60 * 1000;
+// Hourly: expire memberships whose paid 6-month period has lapsed so access is
+// revoked until the next payment is confirmed.
 setInterval(() => {
-  revokeExpiredSubscriptions()
+  expireMemberships()
     .then((n) => {
-      if (n > 0) console.log(`[billing] revoked ${n} expired subscription(s)`);
+      if (n > 0) console.log(`[membership] expired ${n} membership(s)`);
     })
-    .catch((e) => console.error('[billing] error', e));
-}, BILLING_INTERVAL_MS);
+    .catch((e) => console.error('[membership] error', e));
+}, 60 * 60 * 1000);
+
+// Periodically pull new vacancies from configured online sources.
+if (config.ingestion.enabled) {
+  const runIngest = () =>
+    ingestAll()
+      .then((r) => console.log(`[ingest] ${r.created} new job(s) from ${r.sources} source(s)`))
+      .catch((e) => console.error('[ingest] error', e));
+  setTimeout(runIngest, 10 * 1000);
+  setInterval(runIngest, config.ingestion.intervalMinutes * 60 * 1000);
+}
 
 app.listen(config.port, () => {
-  console.log(`Bax backend running on http://localhost:${config.port}`);
+  console.log(`Opportunities Namibia backend running on http://localhost:${config.port}`);
 });
 
 module.exports = app;
