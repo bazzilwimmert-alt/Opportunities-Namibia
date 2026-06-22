@@ -10,18 +10,18 @@ void main() {
   runApp(
     ChangeNotifierProvider(
       create: (_) => AppState()..bootstrap(),
-      child: const BaxApp(),
+      child: const OpportunitiesApp(),
     ),
   );
 }
 
-class BaxApp extends StatelessWidget {
-  const BaxApp({super.key});
+class OpportunitiesApp extends StatelessWidget {
+  const OpportunitiesApp({super.key});
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Bax',
+      title: 'Opportunities Namibia',
       debugShowCheckedModeBanner: false,
       theme: buildBaxTheme(),
       home: const RootRouter(),

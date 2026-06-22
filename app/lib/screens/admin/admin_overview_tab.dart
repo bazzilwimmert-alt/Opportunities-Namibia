@@ -40,10 +40,10 @@ class _AdminOverviewTabState extends State<AdminOverviewTab> {
     final revenue = (s['revenueCents'] ?? 0) / 100;
     final cards = [
       _StatCard('Users', '${s['users']}', Icons.people),
-      _StatCard('Active subs', '${s['activeSubscriptions']}', Icons.verified),
-      _StatCard('Past due', '${s['pastDueSubscriptions']}', Icons.warning_amber),
-      _StatCard('Sports', '${s['sports']}', Icons.sports),
-      _StatCard('Channels', '${s['channels']}', Icons.live_tv),
+      _StatCard('Active members', '${s['activeMembers']}', Icons.verified),
+      _StatCard('Pending payments', '${s['pendingClaims']}', Icons.hourglass_top),
+      _StatCard('Vacancies', '${s['jobs']}', Icons.work),
+      _StatCard('Sources', '${s['sources']}', Icons.cloud_download),
       _StatCard('Revenue', 'N\$${revenue.toStringAsFixed(0)}', Icons.payments),
     ];
     return RefreshIndicator(

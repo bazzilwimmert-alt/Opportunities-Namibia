@@ -1,6 +1,8 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Required to reach the backend API (release builds don't auto-add this). -->
+    <uses-permission android:name="android.permission.INTERNET"/>
     <application
-        android:label="bax"
+        android:label="Opportunities Namibia"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity

@@ -57,9 +57,9 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
         separatorBuilder: (_, __) => const SizedBox(height: 10),
         itemBuilder: (_, i) {
           final u = _users[i] as Map<String, dynamic>;
-          final sub = u['subscription'] as Map<String, dynamic>?;
-          final status = sub?['status'] ?? 'INACTIVE';
-          final active = status == 'ACTIVE';
+          final membership = u['membership'] as Map<String, dynamic>?;
+          final status = membership?['status'] ?? 'INACTIVE';
+          final active = u['hasAccess'] == true;
           return Container(
             padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
@@ -86,7 +86,8 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
                     ),
                     _badge(u['role'], BaxColors.accent),
                     const SizedBox(width: 6),
-                    _badge(status, active ? BaxColors.primary : Colors.orangeAccent),
+                    _badge(active ? 'ACCESS' : status,
+                        active ? BaxColors.primary : Colors.orangeAccent),
                   ],
                 ),
                 const SizedBox(height: 8),
@@ -95,10 +96,10 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
                   children: [
                     TextButton.icon(
                       onPressed: () => _action(() => widget.api.post(
-                          '/api/admin/users/${u['id']}/subscription',
-                          {'action': active ? 'revoke' : 'grant'})),
+                          '/api/admin/users/${u['id']}/access',
+                          {'action': active ? 'revoke' : 'grant', 'months': 6})),
                       icon: Icon(active ? Icons.lock : Icons.lock_open, size: 16),
-                      label: Text(active ? 'Revoke access' : 'Grant access'),
+                      label: Text(active ? 'Revoke access' : 'Grant 6 months'),
                     ),
                     TextButton.icon(
                       onPressed: () => _action(() => widget.api.patch(

@@ -4,19 +4,36 @@ const config = {
   port: parseInt(process.env.PORT || '4000', 10),
   jwtSecret: process.env.JWT_SECRET || 'dev-secret-change-me',
   jwtExpiresIn: process.env.JWT_EXPIRES_IN || '7d',
-  subscription: {
-    priceCents: parseInt(process.env.SUBSCRIPTION_PRICE_CENTS || '20000', 10),
-    currency: process.env.SUBSCRIPTION_CURRENCY || 'NAD',
+  membership: {
+    priceCents: parseInt(process.env.MEMBERSHIP_PRICE_CENTS || '20000', 10), // N$200
+    currency: process.env.MEMBERSHIP_CURRENCY || 'NAD',
+    periodMonths: parseInt(process.env.MEMBERSHIP_PERIOD_MONTHS || '6', 10),
   },
-  payToday: {
-    mode: process.env.PAYTODAY_MODE || 'sandbox',
-    apiBase: process.env.PAYTODAY_API_BASE || 'https://api.paytoday.com.na',
-    merchantId: process.env.PAYTODAY_MERCHANT_ID || '',
-    apiKey: process.env.PAYTODAY_API_KEY || '',
-    webhookSecret: process.env.PAYTODAY_WEBHOOK_SECRET || 'sandbox-webhook-secret',
+  // Manual mobile payment: members pay this number, an admin then confirms.
+  payment: {
+    phone: process.env.PAYMENT_PHONE || '+264814680324',
+    accountName: process.env.PAYMENT_ACCOUNT_NAME || 'Opportunities Namibia',
+  },
+  ingestion: {
+    enabled: (process.env.INGESTION_ENABLED || 'true') === 'true',
+    intervalMinutes: parseInt(process.env.INGESTION_INTERVAL_MINUTES || '360', 10),
+  },
+  notifications: {
+    // Send an "expiring soon" reminder this many days before access lapses.
+    reminderDaysBefore: parseInt(process.env.EXPIRY_REMINDER_DAYS || '7', 10),
+    // Email is optional: if SMTP isn't configured, notifications are still
+    // created in-app and logged to the server console.
+    fromEmail: process.env.MAIL_FROM || 'no-reply@opportunities.na',
+    smtp: {
+      host: process.env.SMTP_HOST || '',
+      port: parseInt(process.env.SMTP_PORT || '587', 10),
+      secure: (process.env.SMTP_SECURE || 'false') === 'true',
+      user: process.env.SMTP_USER || '',
+      pass: process.env.SMTP_PASS || '',
+    },
   },
   admin: {
-    email: process.env.ADMIN_EMAIL || 'admin@bax.tv',
+    email: process.env.ADMIN_EMAIL || 'admin@opportunities.na',
     password: process.env.ADMIN_PASSWORD || 'Admin123!',
   },
   corsOrigins: (process.env.CORS_ORIGINS || '*')

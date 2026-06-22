@@ -11,7 +11,7 @@ async function authenticate(req, res, next) {
     const payload = verifyToken(token);
     const user = await prisma.user.findUnique({
       where: { id: payload.sub },
-      include: { subscription: true, profiles: true },
+      include: { membership: true, profiles: true },
     });
     if (!user || user.status !== 'ACTIVE') {
       return res.status(401).json({ error: 'Invalid or inactive account' });

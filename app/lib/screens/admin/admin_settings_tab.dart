@@ -16,7 +16,13 @@ class _AdminSettingsTabState extends State<AdminSettingsTab> {
   String? _error;
 
   // Editable platform settings the admin controls online.
-  static const _knownKeys = ['appName', 'tagline', 'supportEmail'];
+  static const _knownKeys = [
+    'appName',
+    'tagline',
+    'paymentPhone',
+    'paymentAccountName',
+    'supportEmail',
+  ];
 
   @override
   void initState() {
@@ -112,6 +118,10 @@ class _AdminSettingsTabState extends State<AdminSettingsTab> {
         return 'Tagline';
       case 'supportEmail':
         return 'Support email';
+      case 'paymentPhone':
+        return 'Payment phone number';
+      case 'paymentAccountName':
+        return 'Payment account name';
       default:
         return key;
     }

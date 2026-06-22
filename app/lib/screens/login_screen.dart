@@ -84,7 +84,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
                 const SizedBox(height: 16),
                 Center(
-                  child: Text('Admin demo: admin@bax.tv / Admin123!',
+                  child: Text('Admin demo: admin@opportunities.na / Admin123!',
                       style: TextStyle(color: BaxColors.muted, fontSize: 12)),
                 ),
               ],
