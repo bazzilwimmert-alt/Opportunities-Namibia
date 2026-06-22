@@ -49,7 +49,8 @@ function parseFeed(xml) {
       guid: tag(b, 'guid') || link || title,
       description: tag(b, 'description') || tag(b, 'summary') || tag(b, 'content'),
       pubDate: tag(b, 'pubDate') || tag(b, 'updated') || tag(b, 'published'),
-      company: tag(b, 'author') || tag(b, 'dc:creator'),
+      company: tag(b, 'company') || tag(b, 'author') || tag(b, 'dc:creator'),
+      raw: b,
     });
   }
   return items;
@@ -63,6 +64,25 @@ function guessSkillLevel(text) {
   return unskilled.some((w) => t.includes(w)) ? 'UNSKILLED' : 'SKILLED';
 }
 
+// Pull a human location out of a feed item; fall back to the source default.
+function guessLocation(item, fallback) {
+  const loc = tag(item.raw || '', 'location') ||
+    tag(item.raw || '', 'job:location') ||
+    tag(item.raw || '', 'region');
+  if (loc) return loc.slice(0, 120);
+  const m = (item.title || '').match(/\(([^)]+)\)\s*$/); // "Title (Windhoek)"
+  if (m) return m[1].slice(0, 120);
+  return fallback || 'Namibia';
+}
+
+function matchesKeywords(item, keywords) {
+  if (!keywords) return true;
+  const terms = keywords.split(',').map((k) => k.trim().toLowerCase()).filter(Boolean);
+  if (!terms.length) return true;
+  const hay = `${item.title} ${item.description} ${item.company}`.toLowerCase();
+  return terms.some((k) => hay.includes(k));
+}
+
 async function ingestRss(source) {
   const res = await fetch(source.url, {
     headers: { 'User-Agent': 'OpportunitiesNamibia/1.0 (+jobs ingestion)' },
@@ -72,7 +92,10 @@ async function ingestRss(source) {
   const items = parseFeed(xml);
 
   let created = 0;
+  let kept = 0;
   for (const it of items) {
+    if (!matchesKeywords(it, source.keywords)) continue;
+    kept += 1;
     const externalId = `${source.id}:${it.guid}`;
     const existing = await prisma.job.findUnique({ where: { externalId } });
     if (existing) continue;
@@ -80,7 +103,7 @@ async function ingestRss(source) {
       data: {
         title: it.title.slice(0, 200),
         company: (it.company || source.name).slice(0, 120),
-        location: 'Namibia',
+        location: guessLocation(it, source.location),
         category: source.category || 'General',
         skillLevel: guessSkillLevel(`${it.title} ${it.description}`),
         description: it.description || it.title,
@@ -94,7 +117,7 @@ async function ingestRss(source) {
     });
     created += 1;
   }
-  return { found: items.length, created };
+  return { found: kept, created };
 }
 
 function ingestLinkedIn() {

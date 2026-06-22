@@ -18,6 +18,20 @@ const config = {
     enabled: (process.env.INGESTION_ENABLED || 'true') === 'true',
     intervalMinutes: parseInt(process.env.INGESTION_INTERVAL_MINUTES || '360', 10),
   },
+  notifications: {
+    // Send an "expiring soon" reminder this many days before access lapses.
+    reminderDaysBefore: parseInt(process.env.EXPIRY_REMINDER_DAYS || '7', 10),
+    // Email is optional: if SMTP isn't configured, notifications are still
+    // created in-app and logged to the server console.
+    fromEmail: process.env.MAIL_FROM || 'no-reply@opportunities.na',
+    smtp: {
+      host: process.env.SMTP_HOST || '',
+      port: parseInt(process.env.SMTP_PORT || '587', 10),
+      secure: (process.env.SMTP_SECURE || 'false') === 'true',
+      user: process.env.SMTP_USER || '',
+      pass: process.env.SMTP_PASS || '',
+    },
+  },
   admin: {
     email: process.env.ADMIN_EMAIL || 'admin@opportunities.na',
     password: process.env.ADMIN_PASSWORD || 'Admin123!',

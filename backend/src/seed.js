@@ -198,16 +198,42 @@ async function main() {
   // the demo is deterministic; the admin can enable it and click "Fetch now".
   const sourceCount = await prisma.jobSource.count();
   if (sourceCount === 0) {
-    await prisma.jobSource.create({
-      data: {
-        name: 'Sample Jobs RSS Feed',
-        type: 'RSS',
-        url: 'https://weworkremotely.com/categories/remote-programming-jobs.rss',
-        category: 'IT',
-        enabled: false,
-      },
+    await prisma.jobSource.createMany({
+      data: [
+        {
+          // The real Namibian aggregator. Careerjet publishes an RSS feed of
+          // Namibian vacancies; enable it in production where outbound network
+          // access to careerjet.com.na is available.
+          name: 'Careerjet Namibia',
+          type: 'RSS',
+          url: 'https://www.careerjet.com.na/rss/jobs/?l=Namibia',
+          category: 'General',
+          location: 'Namibia',
+          enabled: true,
+        },
+        {
+          // Remote roles open to Namibians. Reachable from most networks, so it
+          // is a good "Fetch now" demo that the pipeline auto-publishes jobs.
+          name: 'Remote jobs (WeWorkRemotely)',
+          type: 'RSS',
+          url: 'https://weworkremotely.com/categories/remote-programming-jobs.rss',
+          category: 'IT',
+          location: 'Remote',
+          enabled: true,
+        },
+        {
+          // LinkedIn is a documented stub: scraping breaches their ToS. Disabled;
+          // enable only with official LinkedIn Jobs API / partner credentials.
+          name: 'LinkedIn (official API required)',
+          type: 'LINKEDIN',
+          url: 'https://www.linkedin.com/jobs',
+          category: 'General',
+          location: 'Namibia',
+          enabled: false,
+        },
+      ],
     });
-    console.log('  Seeded 1 sample job source (disabled)');
+    console.log('  Seeded 3 job sources (Careerjet NA + Remote enabled, LinkedIn stub disabled)');
   }
 
   // Default platform settings (editable online by the admin)

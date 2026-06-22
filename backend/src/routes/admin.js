@@ -4,6 +4,7 @@ const prisma = require('../db');
 const { authenticate, requireAdmin } = require('../middleware/auth');
 const { activateForPeriod } = require('../services/membership');
 const { ingestSource, ingestAll } = require('../services/ingest');
+const { notifyPaymentConfirmed, notifyPaymentRejected } = require('../services/notify');
 
 const router = express.Router();
 router.use(authenticate, requireAdmin);
@@ -100,6 +101,8 @@ router.post('/payments/:id/confirm', async (req, res) => {
       periodEnd: membership.currentPeriodEnd,
     },
   });
+  const user = await prisma.user.findUnique({ where: { id: claim.userId } });
+  if (user) await notifyPaymentConfirmed(user, membership.currentPeriodEnd);
   return res.json({ claim: updated, membership });
 });
 
@@ -108,6 +111,8 @@ router.post('/payments/:id/reject', async (req, res) => {
     where: { id: req.params.id },
     data: { status: 'REJECTED', reviewedAt: new Date(), reviewedById: req.user.id },
   });
+  const user = await prisma.user.findUnique({ where: { id: claim.userId } });
+  if (user) await notifyPaymentRejected(user);
   return res.json({ claim });
 });
 
@@ -157,6 +162,8 @@ const sourceSchema = z.object({
   type: z.enum(['RSS', 'LINKEDIN']).optional(),
   url: z.string().min(1),
   category: z.string().optional(),
+  location: z.string().optional(),
+  keywords: z.string().optional(),
   enabled: z.boolean().optional(),
 });
 

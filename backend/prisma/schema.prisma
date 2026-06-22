@@ -20,9 +20,10 @@ model User {
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
-  profiles     Profile[]
-  membership   Membership?
-  payments     PaymentClaim[]
+  profiles      Profile[]
+  membership    Membership?
+  payments      PaymentClaim[]
+  notifications Notification[]
 }
 
 // Each account can have up to 2 profiles.
@@ -49,10 +50,29 @@ model Membership {
   currency         String    @default("NAD")
   periodMonths     Int       @default(6)
   currentPeriodEnd DateTime?
+  // Set when an "expiring soon" reminder has been sent for the current period,
+  // so the scheduled job does not notify the same member repeatedly.
+  expiryReminderSentAt DateTime?
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// In-app notification, also emailed when SMTP is configured.
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  type      String   // PAYMENT_CONFIRMED | PAYMENT_REJECTED | EXPIRING_SOON | EXPIRED
+  title     String
+  body      String
+  channel   String   @default("in_app") // in_app | email
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, read])
 }
 
 // A user-submitted record that they paid the admin's mobile number. The admin
@@ -104,6 +124,8 @@ model JobSource {
   type          String    @default("RSS") // RSS | LINKEDIN
   url           String
   category      String?   // default category to tag ingested jobs
+  location      String?   // default location to tag ingested jobs
+  keywords      String?   // optional comma-separated filter; item kept if it matches any
   enabled       Boolean   @default(true)
   lastFetchedAt DateTime?
   lastResult    String?

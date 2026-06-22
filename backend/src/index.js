@@ -5,7 +5,7 @@ const morgan = require('morgan');
 const rateLimit = require('express-rate-limit');
 
 const config = require('./config');
-const { expireMemberships } = require('./services/membership');
+const { expireMemberships, sendExpiryReminders } = require('./services/membership');
 const { ingestAll } = require('./services/ingest');
 
 const publicRoutes = require('./routes/public');
@@ -13,6 +13,7 @@ const authRoutes = require('./routes/auth');
 const profileRoutes = require('./routes/profiles');
 const membershipRoutes = require('./routes/membership');
 const jobRoutes = require('./routes/jobs');
+const notificationRoutes = require('./routes/notifications');
 const adminRoutes = require('./routes/admin');
 
 const app = express();
@@ -36,6 +37,7 @@ app.use('/api/auth', authLimiter, authRoutes);
 app.use('/api/profiles', profileRoutes);
 app.use('/api/membership', membershipRoutes);
 app.use('/api/jobs', jobRoutes);
+app.use('/api/notifications', notificationRoutes);
 app.use('/api/admin', adminRoutes);
 
 app.use((req, res) => res.status(404).json({ error: 'Not found' }));
@@ -46,15 +48,17 @@ app.use((err, req, res, next) => {
   res.status(500).json({ error: 'Internal server error' });
 });
 
-// Hourly: expire memberships whose paid 6-month period has lapsed so access is
-// revoked until the next payment is confirmed.
-setInterval(() => {
-  expireMemberships()
-    .then((n) => {
-      if (n > 0) console.log(`[membership] expired ${n} membership(s)`);
+// Hourly: expire memberships whose paid 6-month period has lapsed (revoking
+// access until the next payment) and send "expiring soon" reminders.
+const runMembershipMaintenance = () =>
+  Promise.all([expireMemberships(), sendExpiryReminders()])
+    .then(([expired, reminded]) => {
+      if (expired > 0) console.log(`[membership] expired ${expired} membership(s)`);
+      if (reminded > 0) console.log(`[membership] sent ${reminded} expiry reminder(s)`);
     })
     .catch((e) => console.error('[membership] error', e));
-}, 60 * 60 * 1000);
+setTimeout(runMembershipMaintenance, 5 * 1000);
+setInterval(runMembershipMaintenance, 60 * 60 * 1000);
 
 // Periodically pull new vacancies from configured online sources.
 if (config.ingestion.enabled) {

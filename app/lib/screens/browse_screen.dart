@@ -7,6 +7,7 @@ import '../widgets/bax_logo.dart';
 import '../widgets/watermark.dart';
 import 'paywall_screen.dart';
 import 'job_detail_screen.dart';
+import 'notifications_screen.dart';
 
 class BrowseScreen extends StatefulWidget {
   const BrowseScreen({super.key});
@@ -48,6 +49,7 @@ class _BrowseScreenState extends State<BrowseScreen> {
           skillLevel: _skillLevel,
         ),
         if (state.categories.isEmpty) state.loadCategories(),
+        state.loadNotifications().catchError((_) {}),
       ]);
     } catch (e) {
       _error = e.toString();
@@ -84,8 +86,14 @@ class _BrowseScreenState extends State<BrowseScreen> {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     const Flexible(child: BaxLogo(size: 34)),
-                    Text('${state.jobs.length} vacancies',
-                        style: TextStyle(color: BaxColors.muted, fontSize: 12)),
+                    Row(
+                      children: [
+                        Text('${state.jobs.length} vacancies',
+                            style: TextStyle(
+                                color: BaxColors.muted, fontSize: 12)),
+                        _notificationBell(state),
+                      ],
+                    ),
                   ],
                 ),
               ),
@@ -113,6 +121,44 @@ class _BrowseScreenState extends State<BrowseScreen> {
           ),
         ),
       ),
+    );
+  }
+
+  Widget _notificationBell(AppState state) {
+    return IconButton(
+      tooltip: 'Notifications',
+      icon: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          const Icon(Icons.notifications_outlined),
+          if (state.unreadCount > 0)
+            Positioned(
+              right: -2,
+              top: -2,
+              child: Container(
+                padding: const EdgeInsets.all(3),
+                decoration: const BoxDecoration(
+                    color: Colors.red, shape: BoxShape.circle),
+                constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
+                child: Text(
+                  '${state.unreadCount}',
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 9,
+                      fontWeight: FontWeight.w800),
+                ),
+              ),
+            ),
+        ],
+      ),
+      onPressed: () async {
+        await Navigator.push(context,
+            MaterialPageRoute(builder: (_) => const NotificationsScreen()));
+        if (mounted) {
+          await context.read<AppState>().loadNotifications().catchError((_) {});
+        }
+      },
     );
   }
 

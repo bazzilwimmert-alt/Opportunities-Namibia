@@ -11,6 +11,8 @@ class AppState extends ChangeNotifier {
   Profile? activeProfile;
   List<Job> jobs = [];
   List<String> categories = [];
+  List<NotificationItem> notifications = [];
+  int unreadCount = 0;
   bool booting = true;
 
   bool get isLoggedIn => user != null;
@@ -88,7 +90,24 @@ class AppState extends ChangeNotifier {
     user = null;
     activeProfile = null;
     jobs = [];
+    notifications = [];
+    unreadCount = 0;
     notifyListeners();
+  }
+
+  // ---- Notifications ----
+  Future<void> loadNotifications() async {
+    final res = await api.get('/api/notifications');
+    notifications = (res['notifications'] as List)
+        .map((e) => NotificationItem.fromJson(e))
+        .toList();
+    unreadCount = res['unread'] ?? 0;
+    notifyListeners();
+  }
+
+  Future<void> markAllNotificationsRead() async {
+    await api.post('/api/notifications/read-all', {});
+    await loadNotifications();
   }
 
   Future<void> refreshUser() async {

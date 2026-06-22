@@ -125,6 +125,34 @@ class User {
       );
 }
 
+class NotificationItem {
+  final String id;
+  final String type;
+  final String title;
+  final String body;
+  final bool read;
+  final DateTime? createdAt;
+
+  NotificationItem({
+    required this.id,
+    required this.type,
+    required this.title,
+    required this.body,
+    required this.read,
+    this.createdAt,
+  });
+
+  factory NotificationItem.fromJson(Map<String, dynamic> j) => NotificationItem(
+        id: j['id'],
+        type: j['type'] ?? '',
+        title: j['title'] ?? '',
+        body: j['body'] ?? '',
+        read: j['read'] ?? false,
+        createdAt:
+            j['createdAt'] != null ? DateTime.tryParse(j['createdAt']) : null,
+      );
+}
+
 class Job {
   final String id;
   final String title;
