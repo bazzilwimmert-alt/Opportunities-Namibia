@@ -202,7 +202,7 @@ ws_settings.cell(row=8, column=2).protection = LOCKED
 eff_hl = ws_settings.cell(row=8, column=3)
 eff_hl.value = "=C4+C5"
 style_formula_cell(eff_hl, PCT_FORMAT)
-ws_settings.cell(row=8, column=4, value="= Prime + Home Loan Margin").font = INSTRUCTION_FONT
+ws_settings.cell(row=8, column=4, value="Prime + Home Loan Margin").font = INSTRUCTION_FONT
 
 # Effective Vehicle Loan Rate
 ws_settings.cell(row=9, column=2, value="Effective Vehicle Loan Rate").font = LABEL_FONT
@@ -211,7 +211,7 @@ ws_settings.cell(row=9, column=2).protection = LOCKED
 eff_vl = ws_settings.cell(row=9, column=3)
 eff_vl.value = "=C4+C6"
 style_formula_cell(eff_vl, PCT_FORMAT)
-ws_settings.cell(row=9, column=4, value="= Prime + Vehicle Loan Margin").font = INSTRUCTION_FONT
+ws_settings.cell(row=9, column=4, value="Prime + Vehicle Loan Margin").font = INSTRUCTION_FONT
 
 # Emergency fund months target
 ws_settings.cell(row=11, column=2, value="Emergency Fund Target (months)").font = LABEL_FONT
@@ -567,24 +567,24 @@ for r in range(header_row_debt + 1, header_row_debt + 1 + DATA_ROWS_DEBT):
     dv_owner_debt.add(ws_debt.cell(row=r, column=3))
     dv_rate_mode.add(ws_debt.cell(row=r, column=6))
 
-    # Interest Rate (auto or manual)
+    # Interest Rate (auto or manual) — blank when row is empty
     rate_cell = ws_debt.cell(row=r, column=8)
-    rate_cell.value = f'=IF(F{r}="Manual",G{r},Settings!$C$4+G{r})'
+    rate_cell.value = f'=IF(A{r}="","",IF(F{r}="Manual",G{r},Settings!$C$4+G{r}))'
     style_formula_cell(rate_cell, PCT_FORMAT)
 
-    # Monthly Interest
+    # Monthly Interest — blank when row is empty
     mi_cell = ws_debt.cell(row=r, column=11)
-    mi_cell.value = f"=IF(E{r}=0,0,E{r}*H{r}/12)"
+    mi_cell.value = f'=IF(A{r}="","",IF(E{r}=0,0,E{r}*H{r}/12))'
     style_formula_cell(mi_cell, NAD_FORMAT_PLAIN)
 
-    # Total Interest Remaining
+    # Total Interest Remaining — blank when row is empty
     ti_cell = ws_debt.cell(row=r, column=12)
-    ti_cell.value = f"=IF(J{r}=0,0,K{r}*J{r})"
+    ti_cell.value = f'=IF(A{r}="","",IF(J{r}=0,0,K{r}*J{r}))'
     style_formula_cell(ti_cell, NAD_FORMAT_PLAIN)
 
-    # Payoff Progress
+    # Payoff Progress — blank when row is empty
     pp_cell = ws_debt.cell(row=r, column=13)
-    pp_cell.value = f"=IF(D{r}=0,0,1-(E{r}/D{r}))"
+    pp_cell.value = f'=IF(A{r}="","",IF(D{r}=0,0,1-(E{r}/D{r})))'
     style_formula_cell(pp_cell, PCT_FORMAT)
 
 # Totals row
@@ -639,7 +639,7 @@ add_instruction(
 ws_home.column_dimensions["A"].width = 5
 ws_home.column_dimensions["B"].width = 30
 ws_home.column_dimensions["C"].width = 22
-ws_home.column_dimensions["D"].width = 5
+ws_home.column_dimensions["D"].width = 18
 ws_home.column_dimensions["E"].width = 18
 ws_home.column_dimensions["F"].width = 18
 ws_home.column_dimensions["G"].width = 18
@@ -760,7 +760,7 @@ add_instruction(
 ws_vehicle.column_dimensions["A"].width = 5
 ws_vehicle.column_dimensions["B"].width = 30
 ws_vehicle.column_dimensions["C"].width = 22
-ws_vehicle.column_dimensions["D"].width = 5
+ws_vehicle.column_dimensions["D"].width = 18
 ws_vehicle.column_dimensions["E"].width = 18
 ws_vehicle.column_dimensions["F"].width = 18
 ws_vehicle.column_dimensions["G"].width = 18
@@ -935,19 +935,19 @@ for r in range(header_row_sav + 1, header_row_sav + 1 + DATA_ROWS_SAV):
             cell.number_format = NAD_FORMAT_PLAIN
     dv_savings_type.add(ws_savings.cell(row=r, column=2))
 
-    # % of goal
+    # % of goal — blank when row is empty
     pct = ws_savings.cell(row=r, column=6)
-    pct.value = f"=IF(E{r}=0,0,MIN(1,C{r}/E{r}))"
+    pct.value = f'=IF(A{r}="","",IF(E{r}=0,0,MIN(1,C{r}/E{r})))'
     style_formula_cell(pct, PCT_FORMAT)
 
-    # Remaining
+    # Remaining — blank when row is empty
     rem = ws_savings.cell(row=r, column=7)
-    rem.value = f"=IF(E{r}=0,0,MAX(0,E{r}-C{r}))"
+    rem.value = f'=IF(A{r}="","",IF(E{r}=0,0,MAX(0,E{r}-C{r})))'
     style_formula_cell(rem, NAD_FORMAT_PLAIN)
 
-    # Months to goal
+    # Months to goal — blank when row is empty
     mtg = ws_savings.cell(row=r, column=8)
-    mtg.value = f'=IF(OR(D{r}=0,G{r}<=0),"N/A",ROUNDUP(G{r}/D{r},0))'
+    mtg.value = f'=IF(A{r}="","",IF(OR(D{r}=0,G{r}<=0),"N/A",ROUNDUP(G{r}/D{r},0)))'
     style_formula_cell(mtg)
 
 # Totals
@@ -1038,14 +1038,14 @@ for r in range(header_row_inv + 1, header_row_inv + 1 + DATA_ROWS_INV):
 
     dv_invest_type.add(ws_invest.cell(row=r, column=1))
 
-    # Gain/Loss
+    # Gain/Loss — blank when row is empty
     gl = ws_invest.cell(row=r, column=7)
-    gl.value = f"=IF(C{r}=0,0,D{r}-C{r})"
+    gl.value = f'=IF(A{r}="","",IF(C{r}=0,0,D{r}-C{r}))'
     style_formula_cell(gl, NAD_FORMAT_PLAIN)
 
-    # Gain/Loss %
+    # Gain/Loss % — blank when row is empty
     glp = ws_invest.cell(row=r, column=8)
-    glp.value = f"=IF(C{r}=0,0,G{r}/C{r})"
+    glp.value = f'=IF(A{r}="","",IF(C{r}=0,0,G{r}/C{r}))'
     style_formula_cell(glp, PCT_FORMAT)
 
 # Totals
